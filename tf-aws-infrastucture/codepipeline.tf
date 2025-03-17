@@ -70,7 +70,7 @@ resource "aws_codepipeline" "image_gallery" {
         AppSpecTemplateArtifact      = "config_output"
         AppSpecTemplatePath          = "appspec.yaml"
         Image1ArtifactName           = "image_output"
-        Image1ContainerName          = "imageGallery-app"
+        Image1ContainerName          = "${var.project_name}-app"
       }
     }
   }
