@@ -36,15 +36,9 @@ jobs:
 
       - name: Upload deployment files to S3
         run: |
-          # Replace placeholders in taskdef.json
-          sed -i "s/<AWS_REGION>/${{ env.AWS_REGION }}/g" taskdef.json
-          sed -i "s/<IMAGE1_NAME>/$ECR_REGISTRY\/$ECR_REPOSITORY:$IMAGE_TAG/g" taskdef.json
-          sed -i "s/<TASK_EXECUTION_ROLE_ARN>/${{ secrets.TASK_EXECUTION_ROLE_ARN }}/g" taskdef.json
-          sed -i "s/<TASK_ROLE_ARN>/${{ secrets.TASK_ROLE_ARN }}/g" taskdef.json
-          
           # Create a deployment package
           zip -r deploy.zip taskdef.json appspec.yaml
-          
+
           # Upload to S3
           aws s3 cp deploy.zip s3://imagegallery-pipeline-artifacts/deploy.zip
         env:
