@@ -14,7 +14,7 @@ resource "aws_lb" "imageGallery_alb" {
 # Target Groups
 resource "aws_lb_target_group" "blue-app-tg" {
   name        = "${var.project_name}-blue-app-tg"
-  port        = 80
+  port        = 5173
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
@@ -28,7 +28,7 @@ resource "aws_lb_target_group" "blue-app-tg" {
 
 resource "aws_lb_target_group" "green-app-tg" {
   name        = "${var.project_name}-green-app-tg"
-  port        = 80
+  port        = 5173
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
@@ -49,17 +49,6 @@ resource "aws_lb_listener" "blue-app-lst" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.blue-app-tg.arn
-  }
-}
-
-resource "aws_lb_listener" "green-app-lst" {
-  load_balancer_arn = aws_lb.imageGallery_alb.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.green-app-tg.arn
   }
 }
 

@@ -53,6 +53,7 @@ variable "availability_zones" {
 variable "vpc_id" {
   description = "The ID of the VPC"
   type        = string
+  default     = null
 }
 
 //ECS Variables

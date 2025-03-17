@@ -20,7 +20,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
       portMappings = [
         {
           containerPort = 5173
-          hostPort      = 80
+          hostPort      = 5173
           protocol      = "tcp"
         }
       ]
@@ -62,21 +62,29 @@ resource "aws_ecs_service" "app_ecs_service" {
   desired_count   = 2
   launch_type     = "FARGATE"
 
+  deployment_controller {
+    type = "CODE_DEPLOY"
+  }
+
   network_configuration {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.ecs_sg.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.appA.arn
+    target_group_arn = aws_lb_target_group.blue-app-tg.arn
     container_name   = "${var.project_name}-app"
-    container_port   = 80
+    container_port   = 5173
   }
 
-  depends_on = [aws_lb_listener.appA]
-}
+  depends_on = [aws_lb_listener.blue-app-lst]
 
+  # Prevent direct updates to task definition as this will be managed by CodeDeploy
+  lifecycle {
+    ignore_changes = [task_definition, load_balancer]
+  }
+}
 
 # IAM Roles
 resource "aws_iam_role" "ecs_execution_role" {
@@ -123,5 +131,3 @@ resource "aws_cloudwatch_log_group" "image_gallery_app" {
   name              = "/ecs/${var.project_name}-app"
   retention_in_days = 7
 }
-
-

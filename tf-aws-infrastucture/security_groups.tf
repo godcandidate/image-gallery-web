@@ -45,6 +45,14 @@ resource "aws_security_group" "ecs_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 
+    # Allow traffic only from ALB Security Group
+  ingress {
+    from_port       = 5173
+    to_port         = 5173
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
   # Allow all outbound traffic
   egress {
     from_port   = 0
