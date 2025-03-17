@@ -22,16 +22,30 @@ resource "aws_codepipeline" "image_gallery" {
     name = "Source"
 
     action {
-      name             = "Source"
+      name             = "Image"
       category         = "Source"
       owner            = "AWS"
       provider         = "ECR"
       version          = "1"
-      output_artifacts = ["source_output"]
+      output_artifacts = ["image_output"]
 
       configuration = {
         RepositoryName = "image-gallery-app"
         ImageTag       = "latest"
+      }
+    }
+
+    action {
+      name             = "Config"
+      category         = "Source"
+      owner            = "AWS"
+      provider         = "S3"
+      version          = "1"
+      output_artifacts = ["config_output"]
+
+      configuration = {
+        S3Bucket = aws_s3_bucket.artifacts.bucket
+        S3ObjectKey = "deploy.zip"
       }
     }
   }
@@ -44,16 +58,19 @@ resource "aws_codepipeline" "image_gallery" {
       category        = "Deploy"
       owner           = "AWS"
       provider        = "CodeDeployToECS"
-      input_artifacts = ["source_output"]
       version         = "1"
+      
+      input_artifacts = ["image_output", "config_output"]
 
       configuration = {
         ApplicationName                = aws_codedeploy_app.image_gallery.name
         DeploymentGroupName           = aws_codedeploy_deployment_group.image_gallery.deployment_group_name
-        TaskDefinitionTemplateArtifact = "source_output"
-        AppSpecTemplateArtifact       = "source_output"
-        Image1ArtifactName            = "source_output"
-        Image1ContainerName           = "IMAGE1_NAME"
+        TaskDefinitionTemplateArtifact = "config_output"
+        TaskDefinitionTemplatePath    = "taskdef.json"
+        AppSpecTemplateArtifact      = "config_output"
+        AppSpecTemplatePath          = "appspec.yaml"
+        Image1ArtifactName           = "image_output"
+        Image1ContainerName          = "imageGallery-app"
       }
     }
   }
@@ -89,7 +106,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "s3:GetObject",
           "s3:GetObjectVersion",
           "s3:GetBucketVersioning",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:ListBucket"
         ]
         Resource = [
           aws_s3_bucket.artifacts.arn,
