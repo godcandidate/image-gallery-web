@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
-import { Maximize2, Download, Trash2 } from 'lucide-react';
-
-interface Image {
-  id: string;
-  url: string;
-  title: string;
-  timestamp: string;
-}
+import { Maximize2, Download, Trash2, Edit } from 'lucide-react';
+import { Image } from '../types/image';
+import { ImagePreview } from './ImagePreview';
 
 interface ImageCardProps {
   image: Image;
-  onDelete: (id: string) => void;
+  onDelete: (id: string | number) => void;
+  onEdit: (image: Image) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({ image, onDelete }) => {
+export const ImageCard: React.FC<ImageCardProps> = ({ image, onDelete, onEdit }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const formatDate = (timestamp: string) => {
+  const formatDate = (timestamp: string | Date | undefined) => {
+    if (!timestamp) return 'Unknown date';
     return new Date(timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -34,14 +32,20 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onDelete }) => {
     >
       <div className="relative">
         <img
-          src={image.url}
-          alt={image.title}
+          src={image.image_url}
+          alt={image.name}
           className="w-full h-48 object-cover"
           loading="lazy"
         />
         {isHovered && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-4 transition-opacity duration-300">
-            <button className="p-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors">
+            <button 
+              className="p-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPreview(true);
+              }}
+            >
               <Maximize2 size={20} />
             </button>
             <button className="p-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors">
@@ -60,13 +64,28 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onDelete }) => {
         )}
       </div>
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-          {image.title}
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {formatDate(image.timestamp)}
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
+              {image.name}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {formatDate(image.created_at || '')}
+            </p>
+          </div>
+          <div>
+            <button 
+              onClick={() => onEdit(image)}
+              className="p-1 rounded-full bg-blue-100 dark:bg-blue-700 text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
+            >
+              <Edit size={16} />
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Use the ImagePreview component */}
+      {showPreview && <ImagePreview image={image} onClose={() => setShowPreview(false)} />}
     </div>
   );
 };

@@ -1,21 +1,16 @@
 import React from 'react';
 import { ImageCard } from './ImageCard';
 import { Loader } from './Loader';
-
-interface Image {
-  id: string;
-  url: string;
-  title: string;
-  timestamp: string;
-}
+import { Image as ImageType } from '../types/image';
 
 interface ImageGridProps {
-  images: Image[];
+  images: ImageType[];
   loading: boolean;
-  onDelete: (id: string) => void;
+  onDelete: (id: string | number) => void;
+  onEdit: (image: ImageType) => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({ images, loading, onDelete }) => {
+export const ImageGrid: React.FC<ImageGridProps> = ({ images, loading, onDelete, onEdit }) => {
   if (loading) {
     return <Loader />;
   }
@@ -27,6 +22,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, loading, onDelete 
           key={image.id} 
           image={image} 
           onDelete={onDelete}
+          onEdit={onEdit}
         />
       ))}
     </div>
