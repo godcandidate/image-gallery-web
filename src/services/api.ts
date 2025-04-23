@@ -1,6 +1,7 @@
 import { Image } from '../types/image';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Use relative URLs since frontend and backend are served from the same origin
+const API_URL = '/api';
 
 export const fetchImages = async (): Promise<Image[]> => {
   try {

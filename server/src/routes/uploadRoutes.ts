@@ -9,7 +9,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Routes
-router.post('/upload', upload.single('image'), async (req, res, next) => {
+router.post('/', upload.single('image'), async (req, res, next) => {
   try {
     await uploadImage(req, res);
   } catch (error) {
@@ -17,7 +17,7 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
   }
 });
 
-router.get('/images', async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     await getImages(req, res);
   } catch (error) {
@@ -25,7 +25,7 @@ router.get('/images', async (req, res, next) => {
   }
 });
 
-router.delete('/images/:id', async (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     await deleteImage(req, res);
   } catch (error) {

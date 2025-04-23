@@ -51,13 +51,9 @@ export const initializeDatabase = async () => {
     );
     await connection.end();
 
-    // Drop the images table if it exists and recreate it with auto-increment ID
-    const dropTableQuery = `DROP TABLE IF EXISTS images`;
-    await pool.query(dropTableQuery);
-    
-    // Create the images table with auto-increment ID
+    // Create the images table if it doesn't exist with auto-increment ID
     const createTableQuery = `
-      CREATE TABLE images (
+      CREATE TABLE IF NOT EXISTS images (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255),
         type VARCHAR(100),
