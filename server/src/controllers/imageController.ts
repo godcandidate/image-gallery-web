@@ -6,6 +6,21 @@ import { Image, ImageRow } from "../types/image.js";
 
 dotenv.config();
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME || "";
+const AWS_REGION = process.env.AWS_REGION || "";
+
+
+/**
+ * Transforms an S3 URL to use a different region
+ * @param url Original S3 URL
+ * @param targetRegion Target AWS region
+ * @returns URL with updated region
+ */
+export const transformUrlRegion = (url: string, targetRegion: string): string => {
+  // Match any AWS region pattern (e.g., us-east-1, eu-west-1)
+  const regionPattern = /([a-z]{2})-([a-z]+)-(\d+)/;
+  
+  return url.replace(regionPattern, targetRegion);
+};
 
 // Get all images
 export const getImages = async (req: Request, res: Response) => {
@@ -16,10 +31,15 @@ export const getImages = async (req: Request, res: Response) => {
     `;
 
     const [rows] = await pool.execute(query);
+    const images = (rows as ImageRow[]).map(image => ({
+      ...image,
+      image_url: transformUrlRegion(image.image_url, AWS_REGION)
+    }));
 
     return res.status(200).json({
-      images: rows,
+      images
     });
+
   } catch (error) {
     console.error("Error fetching images:", error);
     return res.status(500).json({
