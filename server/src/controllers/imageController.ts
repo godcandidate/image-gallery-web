@@ -17,7 +17,7 @@ const AWS_REGION = process.env.AWS_REGION || "";
  */
 export const transformUrlRegion = (url: string, targetRegion: string): string => {
   // Match any AWS region pattern (e.g., us-east-1, eu-west-1)
-  const regionPattern = /([a-z]{2})-([a-z]+)-(\d+)/;
+  const regionPattern = /(?<=\.|\/|-)([a-z]{2}-[a-z]+-\d+)/g;
   
   return url.replace(regionPattern, targetRegion);
 };
