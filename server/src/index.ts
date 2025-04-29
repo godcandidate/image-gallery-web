@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import imageRoutes from './routes/imageRoutes.js';
-import uploadRoutes from './routes/uploadRoutes.js';
 import { initializeDatabase } from './config/db.js';
 
 // Load environment variables
@@ -28,7 +27,7 @@ app.use(express.json());
 
 // API Routes - prefix with /api
 app.use('/api/images', imageRoutes);
-app.use('/api/upload', uploadRoutes);
+
 
 // API Health check route
 app.get('/api/health', (req, res) => {
