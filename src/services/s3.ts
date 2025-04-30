@@ -2,10 +2,8 @@ import {
   S3Client, 
   ListObjectsV2Command, 
   PutObjectCommand, 
-  DeleteObjectCommand,
-  GetObjectCommand
+  DeleteObjectCommand
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({
   region: import.meta.env.VITE_AWS_REGION,
@@ -16,6 +14,11 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = import.meta.env.VITE_AWS_BUCKET_NAME;
+
+// Helper function to generate the simplified public URL
+const getPublicUrl = (key: string): string => {
+  return `https://${BUCKET_NAME}.s3.${import.meta.env.VITE_AWS_REGION}.amazonaws.com/${encodeURIComponent(key)}`;
+};
 
 export interface S3Image {
   id: string;
@@ -33,25 +36,16 @@ export const listImages = async (): Promise<S3Image[]> => {
     const response = await s3Client.send(command);
     if (!response.Contents) return [];
 
-    const images = await Promise.all(
-      response.Contents.map(async (object) => {
-        if (!object.Key) return null;
-
-        const getObjectCommand = new GetObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: object.Key,
-        });
-
-        const url = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 });
-        
-        return {
-          id: object.Key,
-          url,
-          title: object.Key.split('/').pop()?.split('.').shift() || 'Untitled',
-          timestamp: object.LastModified?.toISOString() || new Date().toISOString(),
-        };
-      })
-    );
+    const images = response.Contents.map((object) => {
+      if (!object.Key) return null;
+      
+      return {
+        id: object.Key,
+        url: getPublicUrl(object.Key),
+        title: object.Key.split('/').pop()?.split('.').shift() || 'Untitled',
+        timestamp: object.LastModified?.toISOString() || new Date().toISOString(),
+      };
+    });
 
     return images.filter((image): image is S3Image => image !== null);
   } catch (error) {
@@ -105,16 +99,9 @@ export const uploadImage = async (
       });
     }
 
-    const getObjectCommand = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    });
-
-    const url = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 });
-
     return {
       id: key,
-      url,
+      url: getPublicUrl(key),
       title,
       timestamp,
     };

@@ -34,23 +34,24 @@ function App() {
     }
   };
 
-  const handleUpload = async (files: File[]) => {
+  const handleUpload = async (files: File[], customName?: string) => {
     try {
       setLoading(true);
       for (const file of files) {
-        const title = file.name.split('.')[0];
-        const toastId = toast.loading(`Uploading ${file.name}...`);
+        const title = customName || file.name.split('.')[0];
+        const displayName = customName || file.name;
+        const toastId = toast.loading(`Uploading ${displayName}...`);
         
         const uploadedImage = await uploadImage(
           file,
           title,
           (progress: UploadProgress) => {
             if (progress.status === 'uploading') {
-              toast.loading(`Uploading ${progress.filename}: ${progress.progress}%`, { id: toastId });
+              toast.loading(`Uploading ${displayName}: ${progress.progress}%`, { id: toastId });
             } else if (progress.status === 'completed') {
-              toast.success(`Successfully uploaded ${progress.filename}!`, { id: toastId });
+              toast.success(`Successfully uploaded ${displayName}!`, { id: toastId });
             } else if (progress.status === 'error') {
-              toast.error(`Failed to upload ${progress.filename}`, { id: toastId });
+              toast.error(`Failed to upload ${displayName}`, { id: toastId });
             }
           }
         );
