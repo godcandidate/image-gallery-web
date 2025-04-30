@@ -2,7 +2,7 @@ name: Deploy to ECR
 
 on:
   push:
-    branches: [main]
+    branches: [xray_lambda_feature]
 
 jobs:
   build:
@@ -33,16 +33,3 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "Image pushed to Amazon ECR successfully"
-
-      - name: Upload deployment files to S3
-        run: |
-          # Create a deployment package
-          zip -r deploy.zip taskdef.json appspec.yaml
-
-          # Upload to S3
-          aws s3 cp deploy.zip s3://imagegallery-pipeline-artifacts/deploy.zip
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: image-gallery-app
-          IMAGE_TAG: latest
-          AWS_REGION: eu-west-1

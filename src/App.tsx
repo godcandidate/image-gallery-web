@@ -5,6 +5,7 @@ import { UploadZone } from './components/UploadZone';
 import { Pagination } from './components/Pagination';
 import { listImages, uploadImage, deleteImage, type S3Image, type UploadProgress } from './services/s3';
 import { Toaster, toast } from 'react-hot-toast';
+import { createSegment } from './services/xray';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -19,7 +20,17 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    fetchImages();
+    // Create a main page segment when the app loads
+    const pageSegment = createSegment('MainPageLoad');
+    
+    try {
+      fetchImages();
+    } finally {
+      // Close the segment after initial load
+      setTimeout(() => {
+        pageSegment.close();
+      }, 2000); // Give enough time for the images to load
+    }
   }, []);
 
   const fetchImages = async () => {
