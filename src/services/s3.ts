@@ -1,159 +1,155 @@
-import { 
-  S3Client, 
-  ListObjectsV2Command, 
-  PutObjectCommand, 
-  DeleteObjectCommand
-} from '@aws-sdk/client-s3';
-import { createSegment, createSubsegment, captureAWSClient } from './xray';
+import axios from "axios";
 
-const s3Client = new S3Client({
-  region: import.meta.env.VITE_AWS_REGION,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY,
-  },
-});
+// Configuration
+const LAMBDA_FUNCTION_URL = import.meta.env.VITE_LAMBDA_FUNCTION_URL || "";
+const BUCKET_NAME = import.meta.env.VITE_AWS_BUCKET_NAME || "";
+const REGION = import.meta.env.VITE_AWS_REGION || "";
 
-// Capture S3 client with X-Ray
-const capturedS3Client = captureAWSClient(s3Client);
-
-const BUCKET_NAME = import.meta.env.VITE_AWS_BUCKET_NAME;
-
-// Helper function to generate the simplified public URL
+// Helper function to generate the public URL for an S3 object (fallback if Lambda doesn't return URLs)
 const getPublicUrl = (key: string): string => {
-  return `https://${BUCKET_NAME}.s3.${import.meta.env.VITE_AWS_REGION}.amazonaws.com/${encodeURIComponent(key)}`;
+  return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${encodeURIComponent(
+    key
+  )}`;
 };
 
 export interface S3Image {
   id: string;
   url: string;
-  title: string;
-  timestamp: string;
+  lastModified?: Date;
+  size?: number;
+  title: string; // Changed from optional to required for App.tsx compatibility
+  timestamp: string; // For compatibility with existing code
 }
 
+export interface UploadProgress {
+  progress: number;
+  message?: string;
+  status: "uploading" | "completed" | "error"; // For compatibility with existing code
+  filename: string; // For compatibility with existing code
+}
+
+// List all images in the bucket via Lambda
 export const listImages = async (): Promise<S3Image[]> => {
-  // Create a segment for listing images
-  const segment = createSegment('ListS3Images');
-  
   try {
-    return await createSubsegment<S3Image[]>(segment, 'S3.ListObjectsV2', async () => {
-      const command = new ListObjectsV2Command({
-        Bucket: BUCKET_NAME,
-      });
+    const response = await axios.get(`${LAMBDA_FUNCTION_URL}/images`);
 
-      const response = await capturedS3Client.send(command);
-      if (!response.Contents) return [];
-
-      const images = response.Contents.map((object) => {
-        if (!object.Key) return null;
-        
-        return {
-          id: object.Key,
-          url: getPublicUrl(object.Key),
-          title: object.Key.split('/').pop()?.split('.').shift() || 'Untitled',
-          timestamp: object.LastModified?.toISOString() || new Date().toISOString(),
-        };
-      });
-
-      return images.filter((image): image is S3Image => image !== null);
-    });
+    // Transform the response data to match our S3Image interface
+    return response.data.map(
+      (image: {
+        id: string;
+        url: string;
+        lastModified?: string;
+        size?: number;
+        title?: string;
+      }) => ({
+        id: image.id || "",
+        url: image.url || getPublicUrl(image.id || ""),
+        lastModified: image.lastModified
+          ? new Date(image.lastModified)
+          : undefined,
+        size: image.size,
+        title: image.title || image.id?.split("/").pop() || "Untitled",
+        timestamp: image.lastModified || new Date().toISOString(), // For compatibility
+      })
+    );
   } catch (error) {
-    console.error('Error listing images:', error);
+    console.error("Error listing images via Lambda:", error);
     throw error;
-  } finally {
-    segment.close();
   }
 };
 
-export interface UploadProgress {
-  status: 'uploading' | 'completed' | 'error';
-  progress: number;
-  filename: string;
-}
-
+// Upload an image to the bucket via Lambda
 export const uploadImage = async (
   file: File,
   title: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<S3Image> => {
-  // Create a segment for uploading image
-  const segment = createSegment('UploadS3Image');
-  
   try {
-    return await createSubsegment<S3Image>(segment, 'S3.PutObject', async (subsegment) => {
-      const timestamp = new Date().toISOString();
-      const fileExtension = file.name.split('.').pop();
-      const key = `${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}.${fileExtension}`;
+    // Generate a unique key for the image using the title
+    const fileExtension = file.name.split(".").pop() || "";
+    const key = `${title.trim().replace(/\s+/g, "-")}.${fileExtension}`;
 
-      // Add metadata to the segment
-      subsegment.addAnnotation('file_size', file.size);
-      subsegment.addAnnotation('file_type', file.type);
-      subsegment.addAnnotation('file_name', file.name);
-      
-      // Convert File to ArrayBuffer and then to Uint8Array
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
+    // Report progress (start)
+    if (onProgress) {
+      onProgress({
+        progress: 0,
+        message: "Starting upload...",
+        status: "uploading",
+        filename: file.name,
+      });
+    }
+
+    try {
+      // Convert file to base64
+      const fileContent = await file.arrayBuffer();
+      const base64Data = btoa(
+        String.fromCharCode(...new Uint8Array(fileContent))
+      );
+
+      // Report progress (encoding complete)
       if (onProgress) {
         onProgress({
-          status: 'uploading',
-          progress: 0,
-          filename: file.name
+          progress: 50,
+          message: "Sending to server...",
+          status: "uploading",
+          filename: file.name,
         });
       }
 
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: uint8Array,
-        ContentType: file.type,
+      // Send to Lambda
+      const response = await axios.post(`${LAMBDA_FUNCTION_URL}/images`, {
+        image: base64Data,
+        contentType: file.type,
+        title: title,
       });
 
-      await capturedS3Client.send(command);
-      
+      // Report progress (complete)
       if (onProgress) {
         onProgress({
-          status: 'completed',
           progress: 100,
-          filename: file.name
+          message: "Upload complete!",
+          status: "completed",
+          filename: file.name,
         });
       }
 
+      // Return the uploaded image info
+      const timestamp = new Date().toISOString();
       return {
-        id: key,
-        url: getPublicUrl(key),
-        title,
-        timestamp,
+        id: response.data.id || key,
+        url: response.data.url || getPublicUrl(key),
+        title: title,
+        size: file.size,
+        lastModified: new Date(),
+        timestamp: timestamp,
       };
-    });
+    } catch (error) {
+      console.error("Error uploading image via Lambda:", error);
+
+      // Report error
+      if (onProgress) {
+        onProgress({
+          progress: 0,
+          message: "Upload failed: " + (error as Error).message,
+          status: "error",
+          filename: file.name,
+        });
+      }
+
+      throw error;
+    }
   } catch (error) {
-    console.error('Error uploading image:', error);
+    console.error("Error uploading image:", error);
     throw error;
-  } finally {
-    segment.close();
   }
 };
 
+// Delete an image from the bucket via Lambda
 export const deleteImage = async (imageId: string): Promise<void> => {
-  // Create a segment for deleting image
-  const segment = createSegment('DeleteS3Image');
-  
   try {
-    await createSubsegment<void>(segment, 'S3.DeleteObject', async (subsegment) => {
-      // Add metadata to the segment
-      subsegment.addAnnotation('image_id', imageId);
-      
-      const command = new DeleteObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: imageId,
-      });
-
-      await capturedS3Client.send(command);
-    });
+    await axios.delete(`${LAMBDA_FUNCTION_URL}/images/${imageId}`);
   } catch (error) {
-    console.error('Error deleting image:', error);
+    console.error("Error deleting image via Lambda:", error);
     throw error;
-  } finally {
-    segment.close();
   }
 };
